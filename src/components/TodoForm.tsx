@@ -2,14 +2,15 @@ import { useState } from "react";
 
 type Props = {
   onAdd: (title: string) => void;
+  isDisabled?: boolean;
 };
 
-export default function TodoForm({ onAdd }: Props) {
+export default function TodoForm({ onAdd, isDisabled = false }: Props) {
   const [title, setTitle] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || isDisabled) return;
     onAdd(title.trim());
     setTitle("");
   };
@@ -19,7 +20,8 @@ export default function TodoForm({ onAdd }: Props) {
       <input
         value={title}
         onChange={e => setTitle(e.target.value)}
-        placeholder="Add a new task..."
+        placeholder={isDisabled ? "Capacity reached (5/5)" : "Add a new task..."}
+        disabled={isDisabled}
         style={{
           flex: 1,
           padding: "0.75rem 1rem",
@@ -27,19 +29,25 @@ export default function TodoForm({ onAdd }: Props) {
           border: "1px solid #ccc",
           fontSize: "1rem",
           outline: "none",
+          opacity: isDisabled ? 0.5 : 1,
+          cursor: isDisabled ? "not-allowed" : "text",
         }}
       />
       <button
         type="submit"
+        disabled={isDisabled}
         style={{
           padding: "0.75rem 1.5rem",
-          background: "linear-gradient(135deg, #f0c040, #e67e22)",
-          color: "#111",
+          background: isDisabled
+            ? "#999"
+            : "linear-gradient(135deg, #f0c040, #e67e22)",
+          color: isDisabled ? "#eee" : "#111",
           fontWeight: 700,
           border: "none",
           borderRadius: "8px",
-          cursor: "pointer",
+          cursor: isDisabled ? "not-allowed" : "pointer",
           fontSize: "1rem",
+          opacity: isDisabled ? 0.6 : 1,
         }}
       >
         + Add

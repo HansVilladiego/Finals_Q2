@@ -14,3 +14,6 @@ export const update = (id: number, data: Partial<Todo>) =>
 
 export const remove = (id: number) =>
   axios.delete(`${BASE_URL}/${id}`);
+
+export const clearCompleted = (ids: number[]) =>
+  Promise.all(ids.map(id => axios.delete(`${BASE_URL}/${id}`)));

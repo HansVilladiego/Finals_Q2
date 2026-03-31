@@ -6,9 +6,10 @@ type Props = {
   onToggle: (id: number, isCompleted: boolean) => void;
   onDelete: (id: number) => void;
   onEdit: (id: number, title: string) => void;
+  oldestPendingId: number | null;
 };
 
-export default function TodoList({ todos, onToggle, onDelete, onEdit }: Props) {
+export default function TodoList({ todos, onToggle, onDelete, onEdit, oldestPendingId }: Props) {
   if (todos.length === 0) {
     return (
       <div style={{ textAlign: "center", padding: "3rem", opacity: 0.5 }}>
@@ -28,7 +29,14 @@ export default function TodoList({ todos, onToggle, onDelete, onEdit }: Props) {
             Pending ({pending.length})
           </p>
           {pending.map(todo => (
-            <TodoItem key={todo.id} todo={todo} onToggle={onToggle} onDelete={onDelete} onEdit={onEdit} />
+            <TodoItem
+              key={todo.id}
+              todo={todo}
+              onToggle={onToggle}
+              onDelete={onDelete}
+              onEdit={onEdit}
+              isNext={todo.id === oldestPendingId}
+            />
           ))}
         </>
       )}
@@ -36,10 +44,17 @@ export default function TodoList({ todos, onToggle, onDelete, onEdit }: Props) {
       {completed.length > 0 && (
         <>
           <p style={{ fontWeight: 700, margin: "1rem 0 0.5rem", opacity: 0.6, fontSize: "0.85rem", textTransform: "uppercase" }}>
-            Completed ({completed.length})
+            Completed ({completed.length}) — vanishes in 15s
           </p>
           {completed.map(todo => (
-            <TodoItem key={todo.id} todo={todo} onToggle={onToggle} onDelete={onDelete} onEdit={onEdit} />
+            <TodoItem
+              key={todo.id}
+              todo={todo}
+              onToggle={onToggle}
+              onDelete={onDelete}
+              onEdit={onEdit}
+              isNext={false}
+            />
           ))}
         </>
       )}

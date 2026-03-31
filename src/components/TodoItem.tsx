@@ -6,9 +6,10 @@ type Props = {
   onToggle: (id: number, isCompleted: boolean) => void;
   onDelete: (id: number) => void;
   onEdit: (id: number, title: string) => void;
+  isNext: boolean;
 };
 
-export default function TodoItem({ todo, onToggle, onDelete, onEdit }: Props) {
+export default function TodoItem({ todo, onToggle, onDelete, onEdit, isNext }: Props) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(todo.title);
 
@@ -28,9 +29,26 @@ export default function TodoItem({ todo, onToggle, onDelete, onEdit }: Props) {
       background: "#fff",
       boxShadow: "0 2px 8px rgba(0,0,0,0.07)",
       marginBottom: "0.75rem",
-      border: "1px solid #eee",
+      border: isNext ? "2px solid #f0c040" : "1px solid #eee",
+      opacity: todo.isCompleted ? 0.65 : 1,
+      transition: "opacity 0.4s",
     }}>
-      {/* Checkbox */}
+
+      {/* FIFO indicator */}
+      {isNext && (
+        <span style={{
+          fontSize: "0.65rem",
+          fontWeight: 700,
+          background: "#f0c040",
+          color: "#111",
+          borderRadius: "4px",
+          padding: "0.15rem 0.4rem",
+          whiteSpace: "nowrap",
+        }}>
+          NEXT
+        </span>
+      )}
+
       <input
         type="checkbox"
         checked={todo.isCompleted}
@@ -38,7 +56,6 @@ export default function TodoItem({ todo, onToggle, onDelete, onEdit }: Props) {
         style={{ width: "18px", height: "18px", cursor: "pointer", accentColor: "#f0c040" }}
       />
 
-      {/* Title or Edit Input */}
       {isEditing ? (
         <input
           value={editValue}
@@ -63,7 +80,6 @@ export default function TodoItem({ todo, onToggle, onDelete, onEdit }: Props) {
         </span>
       )}
 
-      {/* Action Buttons */}
       {isEditing ? (
         <>
           <button onClick={handleEdit} style={btnStyle("#2ecc71", "#fff")}>Save</button>
