@@ -4,10 +4,13 @@ import * as todoService from "./services/todoService";
 import TodoForm from "./components/TodoForm";
 import TodoList from "./components/TodoList";
 
+type Filter = "all" | "pending" | "completed";
+
 export default function App() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<Filter>("all");
 
   useEffect(() => {
     todoService.getAll()
@@ -58,6 +61,12 @@ export default function App() {
 
   const completed = todos.filter(t => t.isCompleted).length;
 
+  const filteredTodos = todos.filter(t => {
+    if (filter === "pending") return !t.isCompleted;
+    if (filter === "completed") return t.isCompleted;
+    return true;
+  });
+
   return (
     <div style={{
       minHeight: "100vh",
@@ -67,18 +76,14 @@ export default function App() {
       justifyContent: "center",
       padding: "3rem 1rem",
     }}>
-      <div style={{
-        width: "100%",
-        maxWidth: "620px",
-      }}>
+      <div style={{ width: "100%", maxWidth: "620px" }}>
+
         {/* Header */}
         <div style={{ textAlign: "center", marginBottom: "2rem" }}>
           <h1 style={{ fontSize: "2.5rem", fontWeight: 800, color: "#f0c040", marginBottom: "0.25rem" }}>
             📝 Todo App
           </h1>
-          <p style={{ color: "#aaa", fontSize: "1rem" }}>
-            Stay organized. Get things done.
-          </p>
+          <p style={{ color: "#aaa", fontSize: "1rem" }}>Stay organized. Get things done.</p>
         </div>
 
         {/* Stats Bar */}
@@ -98,6 +103,34 @@ export default function App() {
             <span>Completed: <strong style={{ color: "#2ecc71" }}>{completed}</strong></span>
           </div>
         )}
+
+        {/* Filter Tabs */}
+        <div style={{
+          display: "flex",
+          gap: "0.5rem",
+          marginBottom: "1.25rem",
+        }}>
+          {(["all", "pending", "completed"] as Filter[]).map(f => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              style={{
+                flex: 1,
+                padding: "0.6rem",
+                borderRadius: "8px",
+                border: "none",
+                cursor: "pointer",
+                fontWeight: 600,
+                fontSize: "0.9rem",
+                background: filter === f ? "#f0c040" : "rgba(255,255,255,0.07)",
+                color: filter === f ? "#111" : "#aaa",
+                transition: "all 0.2s",
+              }}
+            >
+              {f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
+        </div>
 
         {/* Error Banner */}
         {error && (
@@ -134,7 +167,7 @@ export default function App() {
             </div>
           ) : (
             <TodoList
-              todos={todos}
+              todos={filteredTodos}
               onToggle={handleToggle}
               onDelete={handleDelete}
               onEdit={handleEdit}
