@@ -3,6 +3,7 @@ import type { Todo } from "./types/todo";
 import * as todoService from "./services/todoService";
 import TodoForm from "./components/TodoForm";
 import TodoList from "./components/TodoList";
+import ChainStatus from "./components/ChainStatus";
 
 type Filter = "all" | "pending" | "completed";
 const MAX_ACTIVE = 5;
@@ -13,13 +14,27 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const ghostTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  const [chainStatus, setChainStatus] = useState<"valid" | "tampered" | "checking" | "unknown">("checking");
 
-  useEffect(() => {
-    todoService.getAll()
-      .then(setTodos)
-      .catch(() => setError("Could not connect to the server. Is the API running?"))
-      .finally(() => setLoading(false));
-  }, []);
+
+    const checkChain = async () => {
+    try {
+      const result = await todoService.verifyChain();
+      setChainStatus(result.status === "valid" ? "valid" : "tampered");
+    } catch {
+      setChainStatus("unknown");
+    }
+  };
+
+useEffect(() => {
+  todoService.getAll()
+    .then(setTodos)
+    .catch(() => setError("Could not connect to the server. Is the API running?"))
+    .finally(() => {
+      setLoading(false);
+      checkChain();
+    });
+}, []);
 
   // FIFO: the next task to complete is always the oldest pending one
   const oldestPendingId = todos
@@ -29,73 +44,67 @@ export default function App() {
   const activeTasks = todos.filter(t => !t.isCompleted).length;
   const isAtCapacity = activeTasks >= MAX_ACTIVE;
 
-  const handleAdd = async (title: string) => {
-    if (isAtCapacity) return;
-    try {
-      const newTodo = await todoService.create(title);
-      setTodos(prev => [...prev, newTodo]);
-    } catch {
-      setError("Failed to add task.");
-    }
-  };
+const handleAdd = async (title: string) => {
+  if (isAtCapacity) return;
+  try {
+    const newTodo = await todoService.create(title);
+    setTodos(prev => [...prev, newTodo]);
+    checkChain(); // ← add this
+  } catch {
+    setError("Failed to add task.");
+  }
+};
 
-  const handleToggle = async (id: number, isCompleted: boolean) => {
-    // FIFO: only allow completing the oldest pending task
-    if (isCompleted && id !== oldestPendingId) {
-      setError("⚠️ Sequential Integrity: You must complete tasks in order of creation.");
-      return;
-    }
+const handleToggle = async (id: number, isCompleted: boolean) => {
+  if (isCompleted && id !== oldestPendingId) {
+    setError("⚠️ Sequential Integrity: You must complete tasks in order of creation.");
+    return;
+  }
+  const todo = todos.find(t => t.id === id);
+  if (!todo) return;
+  try {
+    const updated = await todoService.update(id, { ...todo, isCompleted });
+    setTodos(prev => prev.map(t => t.id === id ? updated : t));
+    checkChain(); // ← add this
 
-    const todo = todos.find(t => t.id === id);
-    if (!todo) return;
-    try {
-      const updated = await todoService.update(id, { ...todo, isCompleted });
-      setTodos(prev => prev.map(t => t.id === id ? updated : t));
-
-      // Shadow Archive: remove from UI after 15 seconds
-      if (isCompleted) {
-        const timer = setTimeout(() => {
-          setTodos(prev => prev.filter(t => t.id !== id));
-          ghostTimers.current.delete(id);
-        }, 15000);
-        ghostTimers.current.set(id, timer);
-      } else {
-        // If unchecked before ghost, cancel the timer
-        const existing = ghostTimers.current.get(id);
-        if (existing) {
-          clearTimeout(existing);
-          ghostTimers.current.delete(id);
-        }
-      }
-    } catch {
-      setError("Failed to update task.");
-    }
-  };
-
-  const handleEdit = async (id: number, title: string) => {
-    const todo = todos.find(t => t.id === id);
-    if (!todo) return;
-    try {
-      const updated = await todoService.update(id, { ...todo, title });
-      setTodos(prev => prev.map(t => t.id === id ? updated : t));
-    } catch {
-      setError("Failed to edit task.");
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    try {
-      await todoService.remove(id);
-      setTodos(prev => prev.filter(t => t.id !== id));
-      const existing = ghostTimers.current.get(id);
-      if (existing) {
-        clearTimeout(existing);
+    if (isCompleted) {
+      const timer = setTimeout(() => {
+        setTodos(prev => prev.filter(t => t.id !== id));
         ghostTimers.current.delete(id);
-      }
-    } catch {
-      setError("Failed to delete task.");
+      }, 15000);
+      ghostTimers.current.set(id, timer);
+    } else {
+      const existing = ghostTimers.current.get(id);
+      if (existing) { clearTimeout(existing); ghostTimers.current.delete(id); }
     }
-  };
+  } catch {
+    setError("Failed to update task.");
+  }
+};
+
+const handleEdit = async (id: number, title: string) => {
+  const todo = todos.find(t => t.id === id);
+  if (!todo) return;
+  try {
+    const updated = await todoService.update(id, { ...todo, title });
+    setTodos(prev => prev.map(t => t.id === id ? updated : t));
+    checkChain(); // ← add this
+  } catch {
+    setError("Failed to edit task.");
+  }
+};
+
+const handleDelete = async (id: number) => {
+  try {
+    await todoService.remove(id);
+    setTodos(prev => prev.filter(t => t.id !== id));
+    checkChain(); // ← add this
+    const existing = ghostTimers.current.get(id);
+    if (existing) { clearTimeout(existing); ghostTimers.current.delete(id); }
+  } catch {
+    setError("Failed to delete task.");
+  }
+};
 
   const handleClearCompleted = async () => {
     const completedIds = todos.filter(t => t.isCompleted).map(t => t.id);
@@ -137,6 +146,9 @@ export default function App() {
           </h1>
           <p style={{ color: "#aaa", fontSize: "1rem" }}>Stay organized. Get things done.</p>
         </div>
+
+        {/* Chain Status Banner */}
+        <ChainStatus status={chainStatus} />
 
         {/* Capacity Warning Banner */}
         {isAtCapacity && (

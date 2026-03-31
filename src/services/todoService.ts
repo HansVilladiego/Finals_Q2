@@ -17,3 +17,12 @@ export const remove = (id: number) =>
 
 export const clearCompleted = (ids: number[]) =>
   Promise.all(ids.map(id => axios.delete(`${BASE_URL}/${id}`)));
+
+export const verifyChain = () =>
+  axios.get<{ status: string; message: string }>("http://localhost:5228/api/todo/verify")
+    .then(res => res.data)
+    .catch(err => {
+      // 409 Conflict means tampered
+      if (err.response?.status === 409) return err.response.data;
+      throw err;
+    });
